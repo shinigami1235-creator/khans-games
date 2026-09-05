@@ -144,3 +144,18 @@ Pausing the game was not enough — the music scheduler kept running on its
 interval. The audio engine now has `sleep()` / `wake()`, which clear the
 scheduling interval and call `ctx.suspend()` / `ctx.resume()`. Hooked to
 `visibilitychange`, `pagehide` and `pageshow` in all three games.
+
+## How updating works
+
+`service-worker.js` decides what a returning player sees.
+
+- **Page loads are network first** with a 3.5s timeout, falling back to cache.
+  A new build therefore appears on the very next launch when online, and the
+  app still opens instantly offline.
+- **Icons and the manifest are cache first**, refreshed in the background, so
+  they never delay a launch.
+
+`CACHE_VERSION` must be bumped on every single deploy. It is the only thing
+that makes the worker file differ, and a differing worker is what triggers the
+whole update. Leave it unchanged and browsers keep serving the old build no
+matter what else you push.

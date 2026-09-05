@@ -403,9 +403,14 @@ window.addEventListener('keyup',function(e){
   if(e.code==='ArrowDown'||e.code==='KeyS')setDuck(false);
 });
 document.addEventListener('visibilitychange',function(){
-  if(document.hidden&&state==='run'){state='paused';}
+  if(document.hidden){ if(state==='run')state='paused'; AUDIO.sleep(); }
+  else AUDIO.wake();
 });
-window.addEventListener('pointerdown',function(){ if(state==='paused')state='run'; });
+window.addEventListener('pagehide',function(){ if(state==='run')state='paused'; AUDIO.sleep(); });
+window.addEventListener('pageshow',function(){ AUDIO.wake(); });
+window.addEventListener('blur',function(){ AUDIO.sleep(); });
+window.addEventListener('focus',function(){ AUDIO.wake(); });
+window.addEventListener('pointerdown',function(){ AUDIO.wake(); if(state==='paused')state='run'; });
 
 function hit(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
 

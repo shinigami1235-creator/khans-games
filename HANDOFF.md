@@ -119,3 +119,28 @@ Terse UI text. State a thing once and stop. No reassuring padding — not
 - Brick Duel's AI predicts the bounce but has a deliberate reaction delay and a
   random aim error — that's the difficulty dial if you want to tune it.
 - No landscape-specific layout; everything scales but nothing re-arranges.
+
+---
+
+## Bugs found on real devices (don't reintroduce these)
+
+**Tank froze permanently when two shells collided.** The shell loop spliced
+both shells out of the array while iterating it. The outer index then pointed
+past the end, `b2.life` threw a TypeError, and because the throw happened
+inside `update()`, `loop()` never reached its `requestAnimationFrame` call — so
+the game stopped forever. Fixed by marking shells `dead` and sweeping once
+after the loop. **Never splice the array you are iterating.** The frame loop is
+also wrapped in try/catch now, so a future mistake degrades to one dropped
+frame instead of a dead game.
+
+**Dino Rush flashed a blue selection box on tap (Android/installed PWA).**
+Needed `-webkit-tap-highlight-color: rgba(0,0,0,0)`, `-webkit-touch-callout:
+none` and `user-select: none` on `*`, plus a `touchstart` handler that calls
+`preventDefault()`. The `pointerdown` handler now ignores `pointerType ===
+'touch'` so the tap isn't counted twice.
+
+**Audio kept playing when the phone was locked or the app was backgrounded.**
+Pausing the game was not enough — the music scheduler kept running on its
+interval. The audio engine now has `sleep()` / `wake()`, which clear the
+scheduling interval and call `ctx.suspend()` / `ctx.resume()`. Hooked to
+`visibilitychange`, `pagehide` and `pageshow` in all three games.

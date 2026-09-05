@@ -159,7 +159,7 @@ var POWERS=[
 function pwBy(k){for(var i=0;i<POWERS.length;i++)if(POWERS[i].k===k)return POWERS[i];return null;}
 
 var walls, bushes, tanks, shots, parts, boxes, boxT, score, state, msg, msgT, sound=true, solo=false, ai;
-var roundReset=false;
+var roundReset=false, asleep=false;
 var SPAWN=[{x:52,y:VH-44,a:-Math.PI/2},{x:VW-52,y:44,a:Math.PI/2}];
 
 /* ---------- audio ---------- */
@@ -205,6 +205,19 @@ var AUDIO=(function(){
     }
   }
   return {
+    sleep:function(){
+      if(timer){clearInterval(timer);timer=null;}
+      playing=false;
+      if(ctx){ try{ctx.suspend();}catch(e){} }
+    },
+    wake:function(){
+      if(!ctx)return;
+      try{ctx.resume();}catch(e){}
+      if(theme){
+        nextT=ctx.currentTime+0.08; playing=true;
+        if(!timer)timer=setInterval(tick,45);
+      }
+    },
     resume:function(){ if(boot()&&ctx.state==='suspended'){ try{ctx.resume();}catch(e){} } },
     sfx:function(f,d,type,vol,f2){ blip(f,d,type,vol||0.05,sBus,0,f2); },
     start:function(t){
@@ -458,6 +471,13 @@ window.addEventListener('keyup',function(e){
   if(c==='ArrowRight')held.r2=false;
 });
 
+document.addEventListener('visibilitychange',function(){
+  asleep=document.hidden;
+  if(document.hidden)AUDIO.sleep(); else AUDIO.wake();
+});
+window.addEventListener('pagehide',function(){asleep=true;AUDIO.sleep();});
+window.addEventListener('pageshow',function(){asleep=false;AUDIO.wake();});
+
 document.getElementById('again').addEventListener('click',function(){reset();state='play';});
 var mb=document.getElementById('mode');
 mb.addEventListener('click',function(){
@@ -522,6 +542,7 @@ function update(dt){
     if(q.l<=0)parts.splice(i,1);
   }
   if(msgT>0)msgT-=dt;
+  if(asleep)return;
   if(state!=='play')return;
   if(solo)runAI(dt);
 
@@ -595,10 +616,13 @@ function update(dt){
     }
   }
 
-  for(var s=shots.length-1;s>=0;s--){
+  /* Mark shells dead, sweep once at the end. Splicing inside this loop used
+     to shift the indices under it and crash the whole frame. */
+  for(var s=0;s<shots.length;s++){
     var b2=shots[s];
+    if(!b2||b2.dead)continue;
     b2.life-=dt;
-    if(b2.life<=0){shots.splice(s,1);continue;}
+    if(b2.life<=0){b2.dead=true;continue;}
     b2.x+=b2.vx*dt; b2.y+=b2.vy*dt;
 
     for(var w3=0;w3<walls.length;w3++){
@@ -611,9 +635,8 @@ function update(dt){
       tone(430,0.03,'square',0.028);
       break;
     }
-    if(b2.bounce<0){ boom(b2.x,b2.y,'#8C8676',5,120); shots.splice(s,1); continue; }
+    if(b2.bounce<0){ boom(b2.x,b2.y,'#8C8676',5,120); b2.dead=true; continue; }
 
-    var gone=false;
     for(var k=0;k<2;k++){
       if(k===b2.o)continue;                 /* your own shell never hurts you */
       var tk=tanks[k];
@@ -624,7 +647,7 @@ function update(dt){
         boom(tk.x,tk.y,'#69B9E8',22,300);
         tone(520,0.2,'triangle',0.06);
         flash('P'+(k+1)+' shield holds',1.2);
-        shots.splice(s,1); gone=true; break;
+        b2.dead=true; break;
       }
       boom(tk.x,tk.y,COL[k],26,330);
       boom(tk.x,tk.y,'#F0E4C0',10,220);
@@ -634,26 +657,30 @@ function update(dt){
       AUDIO.duck(0.16); setTimeout(function(){AUDIO.duck(0.5);},900);
       score[b2.o]++;
       flash('P'+(b2.o+1)+' hits',1.4);
-      shots.splice(s,1); gone=true;
+      b2.dead=true;
       if(score[b2.o]>=WIN){state='over'; flash('P'+(b2.o+1)+' wins',3);}
       break;
     }
-    if(gone)continue;
+    if(b2.dead)continue;
 
-    for(var s2=shots.length-1;s2>=0;s2--){
-      if(s2===s||s2>=shots.length)continue;
+    for(var s2=0;s2<shots.length;s2++){
+      if(s2===s)continue;
       var b3=shots[s2];
-      if(b3===b2||b3.o===b2.o)continue;
+      if(!b3||b3.dead||b3.o===b2.o)continue;
       if(Math.hypot(b2.x-b3.x,b2.y-b3.y)<(b2.r+b3.r)*1.2){
-        if(b2.heavy&&!b3.heavy){shots.splice(s2,1);boom(b3.x,b3.y,'#F0E4C0',6,180);break;}
-        if(b3.heavy&&!b2.heavy){shots.splice(s,1);boom(b2.x,b2.y,'#F0E4C0',6,180);break;}
+        if(b2.heavy&&!b3.heavy){ b3.dead=true; boom(b3.x,b3.y,'#F0E4C0',6,180); break; }
+        if(b3.heavy&&!b2.heavy){ b2.dead=true; boom(b2.x,b2.y,'#F0E4C0',6,180); break; }
+        b2.dead=true; b3.dead=true;
         boom(b2.x,b2.y,'#F0E4C0',8,200);
         tone(600,0.05,'square',0.04);
-        shots.splice(Math.max(s,s2),1);
-        shots.splice(Math.min(s,s2),1);
         break;
       }
     }
+  }
+  if(shots.length){
+    var live=[];
+    for(var sw=0;sw<shots.length;sw++)if(!shots[sw].dead)live.push(shots[sw]);
+    shots=live;
   }
 }
 
@@ -841,8 +868,10 @@ function draw(){
 var last=performance.now();
 function loop(t){
   var dt=Math.min((t-last)/1000,0.04); last=t;
+  try{
   update(dt); draw();
-  requestAnimationFrame(loop);
+  }catch(err){ if(window.console)console.error(err); }
+  requestAnimationFrame(loop);   /* one bad frame must never stop the game */
 }
 reset();
 requestAnimationFrame(loop);

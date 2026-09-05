@@ -15,7 +15,12 @@
   --bone:#EDE8F7; --dust:#8B82A8; --sand:#6C6386;
   --body:#8B4BC4; --lit:#B681E8; --gold:#EF9F27;
 }
-*{box-sizing:border-box;margin:0;padding:0}
+*{
+  box-sizing:border-box; margin:0; padding:0;
+  -webkit-tap-highlight-color:rgba(0,0,0,0);
+  -webkit-touch-callout:none;
+  -webkit-user-select:none; user-select:none;
+}
 html,body{height:100%}
 body{
   background:var(--night); color:var(--bone);
@@ -23,6 +28,7 @@ body{
   display:flex; flex-direction:column; align-items:center;
   justify-content:center; gap:14px; padding:16px;
   -webkit-user-select:none; user-select:none; overflow:hidden;
+  touch-action:none; overscroll-behavior:none;
 }
 .wrap{width:100%; margin:0 auto; max-width:960px}
 .bar{
@@ -39,6 +45,7 @@ h1 span{color:var(--dust); letter-spacing:.06em; font-weight:400}
   font-weight:600; font-variant-numeric:tabular-nums; line-height:1.2}
 canvas{
   display:block; margin:0 auto; max-width:100%;
+  outline:none; -webkit-tap-highlight-color:rgba(0,0,0,0);
   background:var(--deep); border:2px solid var(--edge); border-radius:10px;
   touch-action:none; cursor:pointer;
 }
@@ -217,6 +224,19 @@ var AUDIO=(function(){
     }
   }
   return {
+    sleep:function(){
+      if(timer){clearInterval(timer);timer=null;}
+      playing=false;
+      if(ctx){ try{ctx.suspend();}catch(e){} }
+    },
+    wake:function(){
+      if(!ctx)return;
+      try{ctx.resume();}catch(e){}
+      if(theme){
+        nextT=ctx.currentTime+0.08; playing=true;
+        if(!timer)timer=setInterval(tick,45);
+      }
+    },
     resume:function(){ if(boot()&&ctx.state==='suspended'){ try{ctx.resume();}catch(e){} } },
     sfx:function(f,d,type,vol,f2){ blip(f,d,type,vol||0.05,sBus,0,f2); },
     start:function(t){
@@ -365,7 +385,13 @@ bd.addEventListener('pointerdown',function(e){e.preventDefault();setDuck(true);}
 bd.addEventListener('pointerup',function(){setDuck(false);});
 bd.addEventListener('pointerleave',function(){setDuck(false);});
 bd.addEventListener('pointercancel',function(){setDuck(false);});
-cv.addEventListener('pointerdown',function(e){e.preventDefault();jump();});
+cv.addEventListener('touchstart',function(e){e.preventDefault();jump();},{passive:false});
+cv.addEventListener('contextmenu',function(e){e.preventDefault();});
+cv.addEventListener('pointerdown',function(e){
+  e.preventDefault();
+  if(e.pointerType==='touch')return;   /* touchstart already handled it */
+  jump();
+});
 cv.addEventListener('pointerup',endHold);
 window.addEventListener('keydown',function(e){
   if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'){e.preventDefault();if(!e.repeat)jump();}
@@ -655,9 +681,11 @@ sb.addEventListener('click',function(){
 var last=performance.now();
 function loop(t){
   var dt=Math.min((t-last)/1000,0.05); last=t;
-  if(shakeT>0)shakeT-=dt;
-  update(dt); draw();
-  requestAnimationFrame(loop);
+  try{
+    if(shakeT>0)shakeT-=dt;
+    update(dt); draw();
+  }catch(err){ if(window.console)console.error(err); }
+  requestAnimationFrame(loop);   /* one bad frame must never stop the game */
 }
 reset();
 requestAnimationFrame(loop);

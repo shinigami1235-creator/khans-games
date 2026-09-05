@@ -208,6 +208,19 @@ var AUDIO=(function(){
     }
   }
   return {
+    sleep:function(){
+      if(timer){clearInterval(timer);timer=null;}
+      playing=false;
+      if(ctx){ try{ctx.suspend();}catch(e){} }
+    },
+    wake:function(){
+      if(!ctx)return;
+      try{ctx.resume();}catch(e){}
+      if(theme){
+        nextT=ctx.currentTime+0.08; playing=true;
+        if(!timer)timer=setInterval(tick,45);
+      }
+    },
     resume:function(){ if(boot()&&ctx.state==='suspended'){ try{ctx.resume();}catch(e){} } },
     sfx:function(f,d,type,vol,f2){ blip(f,d,type,vol||0.05,sBus,0,f2); },
     start:function(t){
@@ -402,8 +415,11 @@ if('ontouchstart' in window){
 }
 
 document.addEventListener('visibilitychange',function(){
-  if(document.hidden&&state==='run')state='paused';
+  if(document.hidden){ if(state==='run')state='paused'; AUDIO.sleep(); }
+  else AUDIO.wake();
 });
+window.addEventListener('pagehide',function(){ if(state==='run')state='paused'; AUDIO.sleep(); });
+window.addEventListener('pageshow',function(){ AUDIO.wake(); });
 
 document.getElementById('win').addEventListener('change',function(){
   WIN=parseInt(this.value,10);
@@ -605,8 +621,10 @@ function draw(){
 var last=performance.now();
 function loop(t){
   var dt=Math.min((t-last)/1000,0.04); last=t;
+  try{
   update(dt); draw();
-  requestAnimationFrame(loop);
+  }catch(err){ if(window.console)console.error(err); }
+  requestAnimationFrame(loop);   /* one bad frame must never stop the game */
 }
 reset();
 requestAnimationFrame(loop);

@@ -1,5 +1,5 @@
 /* Bump CACHE_VERSION on every deploy or browsers keep serving the old build. */
-const CACHE_VERSION = 'khans-games-v1';
+const CACHE_VERSION = 'khans-games-v2';
 const ASSETS = [
   './',
   './index.html',

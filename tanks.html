@@ -193,6 +193,14 @@ var AUDIO=(function(){
   function semi(n){ return 440*Math.pow(2,n/12); }
   function tick(){
     if(!boot()||!theme)return;
+    /* Belt and braces: the scheduler keeps running while the page is hidden,
+       so check directly rather than trusting visibilitychange to have fired. */
+    if(typeof document!=='undefined'&&document.hidden){
+      if(timer){clearInterval(timer);timer=null;}
+      playing=false;
+      try{ctx.suspend();}catch(e){}
+      return;
+    }
     var six=60/(theme.bpm*rate)/4;
     while(nextT < ctx.currentTime+0.18){
       var i=step%theme.len;

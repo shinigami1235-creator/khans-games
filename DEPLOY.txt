@@ -1,0 +1,124 @@
+=========================================================
+  PUTTING KHAN'S GAMES ON GITHUB PAGES
+=========================================================
+
+--- FILES THAT MUST GO IN THE REPO (all at the top level,
+--- no subfolders) ---
+
+  index.html
+  manifest.json
+  service-worker.js
+  icon-192.png
+  icon-512.png
+  icon-maskable-512.png
+  apple-touch-icon.png
+  favicon.png
+  README.md
+
+Everything is at the root on purpose: GitHub's browser
+uploader flattens subfolders, and with no subfolders there
+is nothing to flatten.
+
+
+=========================================================
+  OPTION A — FROM A COMPUTER (Command Prompt)
+=========================================================
+
+Create the empty repo first at https://github.com/new
+  Name: khans-games
+  Public
+  Do NOT tick "Add a README"
+
+Then paste this, one block, adjusting only the cd path:
+
+  cd "C:\Users\User\Documents\Coding Projects"
+  mkdir khans-games
+  cd khans-games
+
+Copy the files listed above into that folder, then:
+
+  git init
+  git add -A
+  git commit -m "Khan's Games"
+  git branch -M main
+  git remote add origin https://github.com/shinigami1235-creator/khans-games.git
+  git push -u origin main
+
+CHECK THE OUTPUT BEFORE MOVING ON. A pasted block keeps
+running even if a line fails, so a clean-looking push can
+still have committed the wrong thing. Run:
+
+  git ls-files
+
+You should see all nine files listed. If not, stop and fix
+before enabling Pages.
+
+
+=========================================================
+  OPTION B — FROM YOUR PHONE
+=========================================================
+
+Use a BROWSER (Chrome), not the GitHub app. The app can
+create a repo but cannot upload files.
+
+  1. github.com/new  ->  name: khans-games  ->  Public
+     -> tick "Add a README file" -> Create repository
+  2. In the repo tap:  Add file  ->  Upload files
+     (if you can't see it, Chrome menu -> Request desktop site)
+  3. Select all nine files at once.
+  4. IMPORTANT: on the commit screen choose
+        "Commit directly to the main branch"
+     NOT "Create a new branch". This is what caused the 404
+     last time - the files landed on a side branch and main
+     stayed empty.
+  5. Commit changes.
+
+
+=========================================================
+  TURN ON GITHUB PAGES  (both options)
+=========================================================
+
+  Settings  ->  Pages
+  Source:   Deploy from a branch
+  Branch:   main      Folder:  / (root)
+  Save
+
+Wait 1-2 minutes for the first build.
+
+Your link:
+  https://shinigami1235-creator.github.io/khans-games/
+
+
+=========================================================
+  IF YOU GET A 404
+=========================================================
+
+  - Is index.html visible on the repo's main page? If not,
+    the commit went to another branch.
+  - Is the repo Public? Pages needs it on a free account.
+  - Did you wait for the first build to finish?
+  - Trailing slash and exact spelling in the URL.
+
+
+=========================================================
+  ADDING IT TO A HOME SCREEN
+=========================================================
+
+Android (Chrome):  menu -> "Install app" / "Add to Home screen"
+iOS (Safari ONLY): Share -> "Add to Home Screen"
+                   Chrome on iOS cannot install web apps.
+
+It runs full screen with its own icon and works offline.
+
+
+=========================================================
+  WHEN YOU UPDATE THE GAMES LATER
+=========================================================
+
+Open service-worker.js and change this line:
+
+  const CACHE_VERSION = 'khans-games-v1';
+
+to v2, v3, and so on. Skip it and everyone's browser keeps
+serving the old version even after a successful upload.
+This is the entire update mechanism.
